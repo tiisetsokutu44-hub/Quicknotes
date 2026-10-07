@@ -8,26 +8,55 @@ const noteCount = document.querySelector("#note-count");
 const errorMessage = document.querySelector("#error-message");
 
 const MAX_LENGTH = 200;
+const STORAGE_KEY = "quicknotes";
 
 // ---------- Data ----------
 let notes = []; // each: { id, text, category, createdAt }
 
+// ---------- localStorage ----------
+function saveNotes() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+}
+
+function loadNotes() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      return JSON.parse(saved);
+    } catch (e) {
+      return []; // corrupted data, start fresh
+    }
+  }
+  return [];
+}
+
+// ---------- Search ----------
+function getVisibleNotes() {
+  const term = searchInput.value.trim().toLowerCase();
+  return notes.filter(function (note) {
+    return note.text.toLowerCase().includes(term);
+  });
+}
+
 // ---------- Count message ----------
-function updateCount() {
+function updateCount(visibleCount) {
   if (notes.length === 0) {
     noteCount.textContent = "No notes yet. Add your first one!";
-  } else if (notes.length === 1) {
+  } else if (visibleCount === 0) {
+    noteCount.textContent = "No notes match your search.";
+  } else if (visibleCount === 1) {
     noteCount.textContent = "1 note";
   } else {
-    noteCount.textContent = notes.length + " notes";
+    noteCount.textContent = visibleCount + " notes";
   }
 }
 
 // ---------- Render ----------
 function render() {
   notesList.textContent = ""; // clear the list
+  const visibleNotes = getVisibleNotes();
 
-  notes.forEach(function (note) {
+  visibleNotes.forEach(function (note) {
     const li = document.createElement("li");
     li.classList.add("note-card", "category-" + note.category);
 
@@ -56,7 +85,7 @@ function render() {
     notesList.appendChild(li);
   });
 
-  updateCount();
+  updateCount(visibleNotes.length);
 }
 
 // ---------- Validation ----------
@@ -81,6 +110,7 @@ function addNote(text, category) {
     createdAt: new Date().toISOString(),
   };
   notes.unshift(note); // newest first
+  saveNotes();
   render();
 }
 
@@ -89,6 +119,7 @@ function deleteNote(id) {
   notes = notes.filter(function (note) {
     return note.id !== id;
   });
+  saveNotes();
   render();
 }
 
@@ -114,5 +145,8 @@ noteInput.addEventListener("input", function () {
   errorMessage.textContent = "";
 });
 
+searchInput.addEventListener("input", render);
+
 // ---------- Start ----------
+notes = loadNotes();
 render();
